@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.js"></script>
+
+  <!-- Sweet Alert -->
+  <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Loading Overlay -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/gasparesganga-jquery-loading-overlay@2.1.7/dist/loadingoverlay.min.js"></script>
+
+
+  <title>Online Scrabble Solver</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai');
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Noto Sans Thai', sans-serif;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      background: rgb(252, 233, 233);
+      background: linear-gradient(0deg, rgba(252, 233, 233, 1) 0%, rgba(224, 244, 241, 1) 26%, rgba(255, 255, 255, 1) 71%);
+      -webkit-background-size: cover;
+      -moz-background-size: cover;
+      -o-background-size: cover;
+      flex-direction: column;
+    }
+
+    .list {
+      background-color: #ffffff;
+      padding: 1.8em 1.2em;
+      box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+      border-radius: 0.6em;
+    }
+
+    footer {
+      margin-top: 30px;
+      background-color: #000;
+      width: 100%;
+      padding: 2px;
+      position: fixed;
+      bottom: 0;
+    }
+
+    footer p,
+    footer a {
+      text-decoration: none;
+      margin: 0;
+    }
+
+    footer .fa {
+      color: #fff740;
+    }
+
+    @media only screen and (min-width: 768px) {
+      .qBox {
+        max-width: 720px;
+      }
+    }
+
+    @media only screen and (min-width: 992px) {
+      .qBox {
+        max-width: 960px;
+      }
+    }
+
+    @media only screen and (min-width: 1200px) {
+      .qBox {
+        max-width: 1140px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md mt-4">
+    <h1 class="text-2xl font-bold text-gray-800">Online Scrabble Solver </h1>
+    <div class="mt-4">
+      <div class="mt-4 mb-4">
+        <input id="inputWord" type="text" placeholder="LETTER"
+          class="w-full border border-gray-300 rounded p-2 text-gray-700 uppercase" />
+      </div>
+
+      <button onclick="findAnagrams()" class="w-full bg-teal-500 text-white py-2 rounded">Search</button>
+    </div>
+    <div id="results" class="mt-4 text-xl"></div>
+  </div>
+
+  <script>
+    const wordsUrl = "https://opensheet.elk.sh/1A1SYLT5apLBFFFaFhnmtBWlhbPVsGr6f-8w2ifmkrh0/word";
+    let wordsList = [];
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    fetch(wordsUrl)
+      .then(response => response.json())
+      .then(data => {
+        wordsList = data.map(item => item.word.toUpperCase());
+      });
+
+    function calculateScore(word) {
+      const letterScores = {
+        'A': 1, 'E': 1, 'I': 1, 'O': 1, 'U': 1, 'L': 1, 'N': 1, 'S': 1, 'T': 1, 'R': 1,
+        'D': 2, 'G': 2,
+        'B': 3, 'C': 3, 'M': 3, 'P': 3,
+        'F': 4, 'H': 4, 'V': 4, 'W': 4, 'Y': 4,
+        'K': 5,
+        'J': 8, 'X': 8,
+        'Q': 10, 'Z': 10,
+        '?': 0
+      };
+      return word.split('').reduce((acc, letter) => acc + (letterScores[letter] || 0), 0);
+    }
+
+    function findAnagrams() {
+      const inputWord = document.getElementById('inputWord').value.toUpperCase().replace(/[^A-Z?]/g, '');
+      let results = [];
+
+      if (inputWord.includes('?')) {
+        const wildcardPositions = [];
+        for (let i = 0; i < inputWord.length; i++) {
+          if (inputWord[i] === '?') {
+            wildcardPositions.push(i);
+          }
+        }
+
+        const generateCombinations = (word, positions, currentPosition) => {
+          if (currentPosition >= positions.length) {
+            const sortedWord = word.split('').sort().join('');
+            results = results.concat(wordsList.filter(item => {
+              const sortedItem = item.split('').sort().join('');
+              return sortedItem === sortedWord;
+            }).map(resultWord => ({
+              word: resultWord,
+              replacements: positions.map(pos => word[pos])
+            })));
+            return;
+          }
+
+          alphabet.split('').forEach(letter => {
+            const newWord = word.split('');
+            newWord[positions[currentPosition]] = letter;
+            generateCombinations(newWord.join(''), positions, currentPosition + 1);
+          });
+        };
+
+        generateCombinations(inputWord, wildcardPositions, 0);
+      } else {
+        const sortedInputWord = inputWord.split('').sort().join('');
+        results = wordsList.filter(word => {
+          const sortedWord = word.split('').sort().join('');
+          return sortedWord === sortedInputWord;
+        }).map(resultWord => ({
+          word: resultWord,
+          replacements: []
+        }));
+      }
+
+      displayResults(results);
+    }
+
+    function displayResults(results) {
+      const resultsContainer = document.getElementById('results');
+      resultsContainer.innerHTML = '';
+      const uniqueResults = Array.from(new Set(results.map(result => result.word)))
+        .map(word => results.find(result => result.word === word));
+
+      if (uniqueResults.length > 0) {
+        uniqueResults.forEach(result => {
+          const highlightedWord = result.word.split('').map((letter, index) => {
+            return result.replacements.includes(letter) ?
+              `<span class="text-red-500 font-bold">${letter}</span>` : letter;
+          }).join('');
+
+          const wordElement = document.createElement('div');
+          wordElement.innerHTML = `${highlightedWord} - ${calculateScore(result.word)} points`;
+          resultsContainer.appendChild(wordElement);
+        });
+      } else {
+        resultsContainer.textContent = 'No results found';
+      }
+    }
+
+    document.getElementById('inputWord').addEventListener('keyup', function (event) {
+      if (event.key === 'Enter') {
+        findAnagrams();
+      }
+    });
+  </script>
+
+  <br />
+  <footer class="text-center text-lg-start bg-light text-muted"
+    style="  position: static;left: 0;bottom: 0;width: 100%;">
+    <div class="text-center p-4" style="background-color: rgba(0, 0, 0, 0.05);">
+      © 2024 Copyright | พัฒนาโดยครูสิทธิชาติ สิทธิ<br />
+    </div>
+  </footer>
+
+</body>
+
+</html>
